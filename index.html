@@ -601,6 +601,34 @@
         let launchCache = {};
         let cacheTimestamp = {};
         const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+        
+        // Load cache from localStorage on page load
+        function loadCacheFromStorage() {
+            try {
+                const cached = localStorage.getItem('rocketLaunchesCache');
+                const cachedTime = localStorage.getItem('rocketLaunchesCacheTime');
+                if (cached && cachedTime) {
+                    const cacheAge = Date.now() - parseInt(cachedTime);
+                    if (cacheAge < CACHE_DURATION * 2) { // Use localStorage cache for up to 10 minutes
+                        launchCache = JSON.parse(cached);
+                        cacheTimestamp = JSON.parse(localStorage.getItem('rocketLaunchesCacheTimestamp') || '{}');
+                    }
+                }
+            } catch (e) {
+                console.error('Error loading cache from storage:', e);
+            }
+        }
+        
+        // Save cache to localStorage
+        function saveCacheToStorage() {
+            try {
+                localStorage.setItem('rocketLaunchesCache', JSON.stringify(launchCache));
+                localStorage.setItem('rocketLaunchesCacheTimestamp', JSON.stringify(cacheTimestamp));
+                localStorage.setItem('rocketLaunchesCacheTime', Date.now().toString());
+            } catch (e) {
+                console.error('Error saving cache to storage:', e);
+            }
+        }
 
         // Status mapping
         const statusMap = {
@@ -616,6 +644,7 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            loadCacheFromStorage();
             setupTabs();
             fetchLaunches('upcoming');
         });
@@ -710,6 +739,7 @@
                 
                 launchCache[type] = launches;
                 cacheTimestamp[type] = Date.now();
+                saveCacheToStorage();
                 
                 renderLaunches(launches, type);
                 document.getElementById('last-updated').textContent = new Date().toLocaleString();
@@ -717,14 +747,26 @@
                 console.error('Fetch error:', error);
                 console.error('Error details:', error.message);
                 
-                // Try to show cached data if available
+                // Try to show cached data if available (check both memory and localStorage)
                 if (launchCache[type] && launchCache[type].length > 0) {
                     const warningMsg = error.message.includes('Rate limit') || error.message.includes('429') 
                         ? 'Rate limit reached. Showing cached data. Please try again in a few minutes.'
-                        : `API Error: ${error.message || 'Network error'}. Showing cached data.`;
+                        : `API temporarily unavailable. Showing cached data.`;
                     container.innerHTML = `
                         <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid var(--warning); padding: 0.8rem; margin-bottom: 1rem; border-radius: 4px; text-align: center; color: var(--warning); font-size: 0.85rem;">
                             ${warningMsg}
+                        </div>
+                    `;
+                    renderLaunches(launchCache[type], type);
+                    return;
+                }
+                
+                // Last resort: try to load from localStorage even if memory cache is empty
+                loadCacheFromStorage();
+                if (launchCache[type] && launchCache[type].length > 0) {
+                    container.innerHTML = `
+                        <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid var(--warning); padding: 0.8rem; margin-bottom: 1rem; border-radius: 4px; text-align: center; color: var(--warning); font-size: 0.85rem;">
+                            API unavailable. Showing previously cached data.
                         </div>
                     `;
                     renderLaunches(launchCache[type], type);
