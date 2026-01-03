@@ -780,7 +780,7 @@
 
             html += '<div class="launches-grid">';
             launches.forEach((launch, index) => {
-                html += renderLaunchCard(launch, index);
+                html += renderLaunchCard(launch, index, type);
             });
             html += '</div>';
 
@@ -867,7 +867,7 @@
             `;
         }
 
-        function renderLaunchCard(launch, index) {
+        function renderLaunchCard(launch, index, tab) {
             const status = statusMap[launch.status?.id] || { class: 'status-tbd', label: 'TBD' };
             const launchDate = new Date(launch.net);
             const isPast = launchDate < new Date();
@@ -922,7 +922,7 @@
 
                         <p class="launch-description">${launch.mission?.description || getMissionDescription(launch)}</p>
 
-                        ${getFailureInfo(launch, 'past')}
+                        ${getFailureInfo(launch, tab)}
 
                         <div class="launch-actions">
                             ${getStreamLink(launch, isPast)}
