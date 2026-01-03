@@ -579,9 +579,8 @@
     </div>
 
     <script>
-        // APIs - using Space Devs API (comprehensive US launches) and SpaceX API for historical data
+        // APIs - using Space Devs API (comprehensive US launches)
         const SPACE_DEVS_API = 'https://ll.thespacedevs.com/2.2.0';
-        const SPACEX_API = 'https://api.spacexdata.com/v4';
         
         // US Launch locations (approximate IDs and search terms)
         const US_LOCATIONS = [
@@ -650,114 +649,9 @@
             `;
 
             try {
-                // For historical tab, fetch from both APIs and combine
-                if (type === 'historical' || type === 'past') {
-                    // Fetch from both APIs in parallel
-                    const [spaceDevsResponse, spaceXResponse] = await Promise.allSettled([
-                        fetch(`${SPACE_DEVS_API}/launch/previous/?limit=20&ordering=-net&location__country_code=USA`, {
-                            method: 'GET',
-                            headers: { 'Accept': 'application/json' },
-                            mode: 'cors'
-                        }),
-                        fetch(`${SPACEX_API}/launches/past?limit=50&order=desc`, {
-                            method: 'GET',
-                            headers: { 'Accept': 'application/json' },
-                            mode: 'cors'
-                        })
-                    ]);
-
-                    let spaceDevsData = null;
-                    let spaceXData = null;
-
-                    // Process Space Devs response
-                    if (spaceDevsResponse.status === 'fulfilled' && spaceDevsResponse.value.ok) {
-                        spaceDevsData = await spaceDevsResponse.value.json();
-                    }
-
-                    // Process SpaceX response
-                    if (spaceXResponse.status === 'fulfilled' && spaceXResponse.value.ok) {
-                        spaceXData = await spaceXResponse.value.json();
-                    }
-
-                    // Combine and convert data
-                    let allLaunches = [];
-
-                    // Add Space Devs launches
-                    if (spaceDevsData && spaceDevsData.results) {
-                        allLaunches = [...spaceDevsData.results];
-                    }
-
-                    // Add SpaceX launches (convert format)
-                    if (spaceXData && Array.isArray(spaceXData)) {
-                        const spaceXLaunches = spaceXData.map(launch => ({
-                            id: `spacex-${launch.id}`,
-                            name: launch.name,
-                            net: launch.date_utc,
-                            status: { id: launch.success === false ? 4 : 3 },
-                            launch_service_provider: { name: 'SpaceX' },
-                            rocket: {
-                                configuration: {
-                                    name: 'Falcon 9',
-                                    full_name: 'Falcon 9',
-                                    image_url: launch.links?.patch?.large || null
-                                }
-                            },
-                            pad: {
-                                name: 'Launch Site',
-                                location: {
-                                    name: 'Cape Canaveral, FL',
-                                    latitude: null,
-                                    longitude: null
-                                }
-                            },
-                            mission: {
-                                name: launch.name,
-                                description: launch.details || '',
-                                type: 'Satellite'
-                            },
-                            image: launch.links?.patch?.large || null,
-                            vidURLs: launch.links?.webcast ? [{ url: launch.links.webcast }] : [],
-                            slug: launch.id,
-                            webcast_live: launch.links?.webcast || null,
-                            infoURLs: [launch.links?.wikipedia, launch.links?.article].filter(Boolean),
-                            failreason: launch.failures?.[0]?.reason || ''
-                        }));
-
-                        allLaunches = [...allLaunches, ...spaceXLaunches];
-                    }
-
-                    // Remove duplicates (by name and date) and sort by date (most recent first)
-                    const uniqueLaunches = [];
-                    const seen = new Set();
-
-                    allLaunches.forEach(launch => {
-                        const key = `${launch.name}-${launch.net}`;
-                        if (!seen.has(key)) {
-                            seen.add(key);
-                            uniqueLaunches.push(launch);
-                        }
-                    });
-
-                    // Sort by date (most recent first)
-                    uniqueLaunches.sort((a, b) => {
-                        const dateA = new Date(a.net);
-                        const dateB = new Date(b.net);
-                        return dateB - dateA; // Descending order (most recent first)
-                    });
-
-                    // Limit to 40 launches
-                    const launches = uniqueLaunches.slice(0, 40);
-
-                    launchCache[type] = launches;
-                    cacheTimestamp[type] = Date.now();
-
-                    renderLaunches(launches, type);
-                    document.getElementById('last-updated').textContent = new Date().toLocaleString();
-                    return;
-                }
-
-                // For upcoming tab, use Space Devs API only
+                // Use Space Devs API (comprehensive US launches)
                 let response;
+                
                 let url;
                 let params = new URLSearchParams({
                     limit: 20,
