@@ -506,6 +506,45 @@
         .meta-value a:hover {
             opacity: 0.8;
         }
+
+        /* Failure info panel */
+        .failure-info {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid var(--danger);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+        }
+
+        .failure-title {
+            color: var(--danger);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .failure-description {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin-bottom: 0.5rem;
+        }
+
+        .failure-link {
+            color: var(--danger);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-bottom: 1px dotted var(--danger);
+            transition: opacity 0.2s ease;
+        }
+
+        .failure-link:hover {
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -613,7 +652,8 @@
                 let url;
                 let params = new URLSearchParams({
                     limit: 20,
-                    location__country_code: 'USA'
+                    location__country_code: 'USA',
+                    mode: 'detailed'
                 });
 
                 if (type === 'upcoming') {
@@ -817,6 +857,8 @@
 
                         <p class="launch-description">${launch.mission?.description || getMissionDescription(launch)}</p>
 
+                        ${getFailureInfo(launch, currentTab)}
+
                         <div class="launch-actions">
                             ${getStreamLink(launch, false)}
                         </div>
@@ -880,6 +922,8 @@
 
                         <p class="launch-description">${launch.mission?.description || getMissionDescription(launch)}</p>
 
+                        ${getFailureInfo(launch, 'past')}
+
                         <div class="launch-actions">
                             ${getStreamLink(launch, isPast)}
                         </div>
@@ -923,6 +967,50 @@
             return `<a href="https://www.youtube.com/results?search_query=${searchQuery}" target="_blank" class="btn btn-primary">Watch Stream</a>`;
         }
 
+        function getFailureInfo(launch, tab) {
+            // Only show failure info for historical/past launches with failure status
+            if (tab !== 'past' && tab !== 'historical') return '';
+            if (launch.status?.id !== 4) return ''; // Status 4 is FAILURE
+            
+            const failReason = launch.failreason || launch.failure_note || '';
+            const infoUrls = launch.infoURLs || [];
+            const wikipediaUrl = infoUrls.find(url => url.includes('wikipedia')) || '';
+            const newsUrl = launch.news_url || '';
+            const slug = launch.slug || '';
+            
+            // Build description
+            let description = failReason || 'This launch encountered a failure.';
+            if (description.length > 200) {
+                description = description.substring(0, 200) + '...';
+            }
+            
+            // Build link - prefer Wikipedia, then news URL, then SpaceLaunchNow link
+            let moreInfoLink = '';
+            let linkText = 'More Information';
+            
+            if (wikipediaUrl) {
+                moreInfoLink = `<a href="${wikipediaUrl}" target="_blank" class="failure-link">${linkText}</a>`;
+            } else if (newsUrl) {
+                moreInfoLink = `<a href="${newsUrl}" target="_blank" class="failure-link">${linkText}</a>`;
+            } else if (slug) {
+                moreInfoLink = `<a href="https://spacelaunchnow.me/launch/${slug}" target="_blank" class="failure-link">${linkText}</a>`;
+            } else if (infoUrls.length > 0) {
+                moreInfoLink = `<a href="${infoUrls[0]}" target="_blank" class="failure-link">${linkText}</a>`;
+            } else {
+                // Search for the launch name on Wikipedia/Google
+                const searchQuery = encodeURIComponent(launch.name + ' failure');
+                moreInfoLink = `<a href="https://www.google.com/search?q=${searchQuery}" target="_blank" class="failure-link">Search for Details</a>`;
+            }
+            
+            return `
+                <div class="failure-info">
+                    <div class="failure-title">Launch Failure</div>
+                    <div class="failure-description">${description}</div>
+                    ${moreInfoLink ? `<div>${moreInfoLink}</div>` : ''}
+                </div>
+            `;
+        }
+        
         function getLocationInfo(launch) {
             const pad = launch.pad;
             if (!pad) return 'Location TBD';
