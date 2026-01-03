@@ -497,6 +497,15 @@
             margin-left: 0.5rem;
             text-transform: uppercase;
         }
+
+        /* Location link styling */
+        .meta-value a {
+            transition: opacity 0.2s ease;
+        }
+
+        .meta-value a:hover {
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -788,8 +797,15 @@
                             <div class="meta-item">
                                 <span class="meta-icon"></span>
                                 <span class="meta-label">Location:</span>
-                                <span class="meta-value">${launch.pad?.location?.name || 'TBD'}</span>
+                                <span class="meta-value">${getLocationInfo(launch)}</span>
                             </div>
+                            ${launch.pad?.name && launch.pad?.location?.name && launch.pad.name !== launch.pad.location.name ? `
+                            <div class="meta-item">
+                                <span class="meta-icon"></span>
+                                <span class="meta-label">Launch Pad:</span>
+                                <span class="meta-value">${launch.pad.name}</span>
+                            </div>
+                            ` : ''}
                             <div class="meta-item">
                                 <span class="meta-icon"></span>
                                 <span class="meta-label">Mission:</span>
@@ -844,8 +860,16 @@
                         <div class="launch-meta">
                             <div class="meta-item">
                                 <span class="meta-icon"></span>
-                                <span class="meta-value">${launch.pad?.name || launch.pad?.location?.name || 'Location TBD'}</span>
+                                <span class="meta-label">Location:</span>
+                                <span class="meta-value">${getLocationInfo(launch)}</span>
                             </div>
+                            ${launch.pad?.name && launch.pad?.location?.name && launch.pad.name !== launch.pad.location.name ? `
+                            <div class="meta-item">
+                                <span class="meta-icon"></span>
+                                <span class="meta-label">Pad:</span>
+                                <span class="meta-value">${launch.pad.name}</span>
+                            </div>
+                            ` : ''}
                             <div class="meta-item">
                                 <span class="meta-icon"></span>
                                 <span class="meta-value">${launch.mission?.name || 'Mission TBD'}
@@ -899,6 +923,41 @@
             return `<a href="https://www.youtube.com/results?search_query=${searchQuery}" target="_blank" class="btn btn-primary">Watch Stream</a>`;
         }
 
+        function getLocationInfo(launch) {
+            const pad = launch.pad;
+            if (!pad) return 'Location TBD';
+            
+            const location = pad.location;
+            const parts = [];
+            
+            // Add pad name if available
+            if (pad.name) {
+                parts.push(pad.name);
+            }
+            
+            // Add location name
+            if (location?.name) {
+                parts.push(location.name);
+            }
+            
+            // Add state if available (some locations have state in the name, but we can try to extract it)
+            if (location?.state) {
+                parts.push(location.state);
+            }
+            
+            let locationText = parts.join(', ') || 'Location TBD';
+            
+            // Add map link if coordinates are available
+            if (location?.latitude && location?.longitude) {
+                const lat = location.latitude;
+                const lon = location.longitude;
+                const mapUrl = `https://www.google.com/maps?q=${lat},${lon}`;
+                return `<a href="${mapUrl}" target="_blank" style="color: var(--accent-cyan); text-decoration: none; border-bottom: 1px dotted var(--accent-cyan);">${locationText}</a>`;
+            }
+            
+            return locationText;
+        }
+        
         function getMissionDescription(launch) {
             const parts = [];
             if (launch.launch_service_provider?.name) {
