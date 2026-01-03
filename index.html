@@ -580,7 +580,7 @@
 
     <script>
         // APIs - using SpaceX API as primary (more reliable, no rate limits)
-        const SPACEX_API = 'https://api.spacexdata.com/v5/launches';
+        const SPACEX_API = 'https://api.spacexdata.com/v5/launches/query';
         const SPACE_DEVS_API = 'https://ll.thespacedevs.com/2.2.0';
         
         // US Launch locations (approximate IDs and search terms)
@@ -655,19 +655,31 @@
                 let useSpaceX = true;
                 
                 try {
+                    // SpaceX API v5 uses POST with query body
+                    const queryBody = {
+                        query: {},
+                        options: {
+                            limit: 20,
+                            sort: type === 'upcoming' ? { date_utc: 'asc' } : { date_utc: 'desc' },
+                            populate: ['rocket', 'launchpad']
+                        }
+                    };
+                    
                     if (type === 'upcoming') {
-                        response = await fetch(`${SPACEX_API}/upcoming?limit=20`, {
-                            method: 'GET',
-                            headers: { 'Accept': 'application/json' },
-                            mode: 'cors'
-                        });
+                        queryBody.query.upcoming = true;
                     } else {
-                        response = await fetch(`${SPACEX_API}/past?limit=20&order=desc`, {
-                            method: 'GET',
-                            headers: { 'Accept': 'application/json' },
-                            mode: 'cors'
-                        });
+                        queryBody.query.upcoming = false;
                     }
+                    
+                    response = await fetch(SPACEX_API, {
+                        method: 'POST',
+                        headers: { 
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(queryBody),
+                        mode: 'cors'
+                    });
                     
                     if (!response.ok) throw new Error('SpaceX API failed');
                 } catch (spacexError) {
@@ -750,7 +762,8 @@
                 // Convert SpaceX API format to our format
                 let launches = [];
                 if (useSpaceX) {
-                    launches = data.map(launch => ({
+                    const docs = data.docs || data;
+                    launches = (Array.isArray(docs) ? docs : []).map(launch => ({
                         id: launch.id,
                         name: launch.name,
                         net: launch.date_utc,
@@ -758,17 +771,17 @@
                         launch_service_provider: { name: 'SpaceX' },
                         rocket: {
                             configuration: {
-                                name: launch.rocket || 'Falcon 9',
-                                full_name: launch.rocket || 'Falcon 9',
+                                name: launch.rocket?.name || 'Falcon 9',
+                                full_name: launch.rocket?.name || 'Falcon 9',
                                 image_url: launch.links?.patch?.large || null
                             }
                         },
                         pad: {
-                            name: launch.launchpad || 'Launch Site',
+                            name: launch.launchpad?.name || 'Launch Site',
                             location: { 
-                                name: launch.launchpad || 'Cape Canaveral',
-                                latitude: null,
-                                longitude: null
+                                name: launch.launchpad?.full_name || launch.launchpad?.name || 'Cape Canaveral',
+                                latitude: launch.launchpad?.latitude || null,
+                                longitude: launch.launchpad?.longitude || null
                             }
                         },
                         mission: {
@@ -780,11 +793,9 @@
                         vidURLs: launch.links?.webcast ? [{ url: launch.links.webcast }] : [],
                         slug: launch.id,
                         webcast_live: launch.links?.webcast || null,
-                        infoURLs: [launch.links?.wikipedia, launch.links?.article].filter(Boolean)
-                    })).filter(launch => {
-                        // Filter for US launches only (SpaceX launches are primarily from US)
-                        return true;
-                    });
+                        infoURLs: [launch.links?.wikipedia, launch.links?.article].filter(Boolean),
+                        failreason: launch.failures?.[0]?.reason || ''
+                    }));
                 } else {
                     launches = data.results || [];
                 }
@@ -1060,7 +1071,7 @@
             if (tab !== 'past' && tab !== 'historical') return '';
             if (launch.status?.id !== 4) return ''; // Status 4 is FAILURE
             
-            const failReason = launch.failreason || launch.failure_note || '';
+            const failReason = launch.failreason || launch.failure_note || launch.failures?.[0]?.reason || '';
             const infoUrls = launch.infoURLs || [];
             const wikipediaUrl = infoUrls.find(url => url.includes('wikipedia')) || '';
             const newsUrl = launch.news_url || '';
