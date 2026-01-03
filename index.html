@@ -720,12 +720,13 @@
             } catch (error) {
                 console.error('Fetch error:', error);
                 console.error('Error details:', error.message);
+                console.error('Error type:', error.constructor.name);
                 
                 // Try to show cached data if available
-                if (launchCache[type]) {
+                if (launchCache[type] && launchCache[type].length > 0) {
                     container.innerHTML = `
-                        <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid var(--warning); padding: 0.5rem; margin-bottom: 1rem; border-radius: 4px; text-align: center; color: var(--warning); font-size: 0.85rem;">
-                            API Error: ${error.message || 'Network error'}. Showing cached data.
+                        <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid var(--warning); padding: 0.8rem; margin-bottom: 1rem; border-radius: 4px; text-align: center; color: var(--warning); font-size: 0.85rem;">
+                            API temporarily unavailable. Showing cached data from previous load.
                         </div>
                     `;
                     renderLaunches(launchCache[type], type);
@@ -739,7 +740,7 @@
                             <path d="M12 8v4M12 16h.01"/>
                         </svg>
                         <h3>Connection Lost</h3>
-                        <p>Unable to reach mission control. The API may be temporarily unavailable.</p>
+                        <p>Unable to reach mission control. The API may be temporarily unavailable or rate limited.</p>
                         <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Error: ${error.message || 'Network error'}</p>
                         <button class="btn btn-primary" onclick="fetchLaunches('${type}')" style="margin-top: 1rem; width: auto;">
                             Retry Connection
