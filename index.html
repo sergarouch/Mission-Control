@@ -652,8 +652,7 @@
                 let url;
                 let params = new URLSearchParams({
                     limit: 20,
-                    location__country_code: 'USA',
-                    mode: 'detailed'
+                    location__country_code: 'USA'
                 });
 
                 if (type === 'upcoming') {
@@ -701,12 +700,13 @@
                 }
                 
                 const data = await response.json();
-                let launches = data.results;
+                let launches = data.results || [];
                 
                 // Filter out past launches for upcoming tab
                 if (type === 'upcoming') {
                     const now = new Date();
                     launches = launches.filter(launch => {
+                        if (!launch.net) return false;
                         const launchDate = new Date(launch.net);
                         return launchDate > now;
                     });
