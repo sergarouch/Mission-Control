@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Rocket Launches | Mission Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a25;
+            --accent-orange: #ff6b35;
+            --accent-cyan: #00d4ff;
+            --accent-purple: #8b5cf6;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #606070;
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Exo 2', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Starfield background */
+        .starfield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 107, 53, 0.05) 0%, transparent 70%);
+        }
+
+        .stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, #fff, transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+                radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.9), transparent),
+                radial-gradient(1px 1px at 230px 80px, #fff, transparent),
+                radial-gradient(2px 2px at 300px 150px, rgba(255,255,255,0.7), transparent),
+                radial-gradient(1px 1px at 350px 200px, #fff, transparent),
+                radial-gradient(2px 2px at 420px 50px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(1px 1px at 500px 180px, #fff, transparent),
+                radial-gradient(2px 2px at 580px 90px, rgba(255,255,255,0.6), transparent);
+            background-size: 600px 300px;
+            animation: twinkle 8s ease-in-out infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        header {
+            padding: 2rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 107, 53, 0.2);
+            background: linear-gradient(180deg, rgba(255, 107, 53, 0.1) 0%, transparent 100%);
+        }
+
+        .logo {
+            font-family: 'Orbitron', monospace;
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: 4px;
+            background: linear-gradient(135deg, var(--accent-orange), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .tagline {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Navigation tabs */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 0.8rem 2rem;
+            background: var(--bg-card);
+            border: 1px solid var(--text-muted);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tab:hover {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+            border-color: var(--accent-orange);
+            color: var(--bg-primary);
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.4);
+        }
+
+        /* Main content */
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .section-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            color: var(--accent-cyan);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: var(--accent-cyan);
+            border-radius: 2px;
+        }
+
+        /* Loading state */
+        .loading {
+            text-align: center;
+            padding: 4rem;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid var(--bg-card);
+            border-top-color: var(--accent-orange);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Launch cards grid */
+        .launches-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .launch-card {
+            background: var(--bg-card);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.5s ease forwards;
+            opacity: 0;
+        }
+
+        .launch-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 107, 53, 0.3);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .launch-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: var(--bg-secondary);
+        }
+
+        .launch-image.placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', monospace;
+            font-size: 3rem;
+            color: var(--text-muted);
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card));
+        }
+
+        .launch-content {
+            padding: 1.5rem;
+        }
+
+        .launch-status {
+            display: inline-block;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.3rem 0.8rem;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.8rem;
+        }
+
+        .status-go { background: var(--success); color: #000; }
+        .status-tbd { background: var(--warning); color: #000; }
+        .status-tbc { background: var(--accent-purple); color: #fff; }
+        .status-success { background: var(--success); color: #000; }
+        .status-failure { background: var(--danger); color: #fff; }
+        .status-partial { background: var(--warning); color: #000; }
+        .status-hold { background: var(--text-muted); color: #fff; }
+
+        .launch-name {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+
+        .launch-provider {
+            color: var(--accent-cyan);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .launch-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        .meta-icon {
+            color: var(--accent-orange);
+            min-width: 20px;
+        }
+
+        .meta-label {
+            color: var(--text-muted);
+            min-width: 70px;
+        }
+
+        .meta-value {
+            color: var(--text-secondary);
+        }
+
+        .launch-description {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .countdown {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.2rem;
+            color: var(--accent-orange);
+            text-align: center;
+            padding: 0.8rem;
+            background: rgba(255, 107, 53, 0.1);
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            letter-spacing: 2px;
+        }
+
+        .countdown.past {
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .launch-actions {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 120px;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.7rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+            transform: scale(1.02);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Featured launch */
+        .featured-launch {
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.15), rgba(0, 212, 255, 0.1));
+            border: 2px solid rgba(255, 107, 53, 0.3);
+            margin-bottom: 2rem;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .featured-launch .launch-image {
+            height: 300px;
+        }
+
+        .featured-badge {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.7rem;
+            background: var(--accent-orange);
+            color: #000;
+            padding: 0.3rem 0.8rem;
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            border-radius: 3px;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        .featured-image-container {
+            position: relative;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 3rem;
+        }
+
+        footer a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .logo {
+                font-size: 1.8rem;
+            }
+
+            .launches-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tab {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.8rem;
+            }
+
+            main {
+                padding: 1rem;
+            }
+        }
+
+        /* Rocket info panel */
+        .rocket-info {
+            background: rgba(0, 212, 255, 0.05);
+            border-left: 3px solid var(--accent-cyan);
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .rocket-name {
+            color: var(--accent-cyan);
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        .rocket-details {
+            color: var(--text-muted);
+        }
+
+        /* Mission type badge */
+        .mission-type {
+            display: inline-block;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.6rem;
+            background: rgba(139, 92, 246, 0.2);
+            color: var(--accent-purple);
+            border-radius: 3px;
+            margin-left: 0.5rem;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="starfield">
+        <div class="stars"></div>
+    </div>
+
+    <div class="content">
+        <header>
+            <h1 class="logo">MISSION CONTROL</h1>
+            <p class="tagline">US Rocket Launch Tracker</p>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab active" data-tab="upcoming">Upcoming</button>
+            <button class="tab" data-tab="past">Historical</button>
+        </nav>
+
+        <main>
+            <div id="launches-container">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Initializing launch sequence...</p>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Data provided by <a href="https://thespacedevs.com/" target="_blank">The Space Devs</a> Launch Library 2 API</p>
+            <p style="margin-top: 0.5rem;">Last updated: <span id="last-updated">-</span></p>
+        </footer>
+    </div>
+
+    <script>
+        // Launch Library 2 API
+        const API_BASE = 'https://ll.thespacedevs.com/2.2.0';
+        
+        // US Launch locations (approximate IDs and search terms)
+        const US_LOCATIONS = [
+            'Kennedy Space Center',
+            'Cape Canaveral',
+            'Vandenberg',
+            'Wallops',
+            'SpaceX',
+            'Kodiak',
+            'Mojave',
+            'Boca Chica',
+            'Starbase',
+            'Pacific Spaceport',
+            'Rocket Lab LC-2'
+        ];
+
+        let currentTab = 'upcoming';
+        let launchCache = {};
+
+        // Status mapping
+        const statusMap = {
+            1: { class: 'status-go', label: 'GO' },
+            2: { class: 'status-tbd', label: 'TBD' },
+            3: { class: 'status-success', label: 'SUCCESS' },
+            4: { class: 'status-failure', label: 'FAILURE' },
+            5: { class: 'status-hold', label: 'HOLD' },
+            6: { class: 'status-tbc', label: 'IN FLIGHT' },
+            7: { class: 'status-partial', label: 'PARTIAL' },
+            8: { class: 'status-tbc', label: 'TBC' }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupTabs();
+            fetchLaunches('upcoming');
+        });
+
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    currentTab = tab.dataset.tab;
+                    fetchLaunches(currentTab);
+                });
+            });
+        }
+
+        async function fetchLaunches(type) {
+            const container = document.getElementById('launches-container');
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Fetching launch data from mission control...</p>
+                </div>
+            `;
+
+            try {
+                let url;
+                let params = new URLSearchParams({
+                    limit: 20,
+                    location__country_code: 'USA'
+                });
+
+                if (type === 'upcoming') {
+                    url = `${API_BASE}/launch/upcoming/?${params}`;
+                } else {
+                    params.set('limit', 20);
+                    params.set('ordering', '-net');
+                    url = `${API_BASE}/launch/previous/?${params}`;
+                }
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    mode: 'cors'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+                
+                const data = await response.json();
+                let launches = data.results;
+                
+                // Filter out past launches for upcoming tab
+                if (type === 'upcoming') {
+                    const now = new Date();
+                    launches = launches.filter(launch => {
+                        const launchDate = new Date(launch.net);
+                        return launchDate > now;
+                    });
+                }
+                
+                launchCache[type] = launches;
+                
+                renderLaunches(launches, type);
+                document.getElementById('last-updated').textContent = new Date().toLocaleString();
+            } catch (error) {
+                console.error('Fetch error:', error);
+                console.error('Error details:', error.message);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 8v4M12 16h.01"/>
+                        </svg>
+                        <h3>Connection Lost</h3>
+                        <p>Unable to reach mission control. The API may be temporarily unavailable.</p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Error: ${error.message || 'Network error'}</p>
+                        <button class="btn btn-primary" onclick="fetchLaunches('${type}')" style="margin-top: 1rem; width: auto;">
+                            Retry Connection
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderLaunches(launches, type) {
+            const container = document.getElementById('launches-container');
+            
+            if (!launches || launches.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
+                        <h3>No Launches Found</h3>
+                        <p>No ${type} launches are currently scheduled for US locations.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const title = {
+                'upcoming': 'Upcoming US Launches',
+                'past': 'Historical Launches'
+            }[type];
+
+            let html = `<h2 class="section-title">${title}</h2>`;
+            
+            // Featured launch for upcoming
+            if (type === 'upcoming' && launches.length > 0) {
+                html += renderFeaturedLaunch(launches[0]);
+                launches = launches.slice(1);
+            }
+
+            html += '<div class="launches-grid">';
+            launches.forEach((launch, index) => {
+                html += renderLaunchCard(launch, index);
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
+
+            // Start countdowns for upcoming launches
+            if (type === 'upcoming') {
+                startCountdowns();
+            }
+        }
+
+        function renderFeaturedLaunch(launch) {
+            const status = statusMap[launch.status?.id] || { class: 'status-tbd', label: 'TBD' };
+            const launchDate = new Date(launch.net);
+            const imageUrl = launch.image || launch.rocket?.configuration?.image_url;
+
+            return `
+                <div class="launch-card featured-launch" style="animation-delay: 0s;">
+                    <div class="featured-image-container">
+                        <span class="featured-badge">NEXT LAUNCH</span>
+                        ${imageUrl 
+                            ? `<img class="launch-image" src="${imageUrl}" alt="${launch.name}" onerror="this.outerHTML='<div class=\\'launch-image placeholder\\'></div>'">`
+                            : '<div class="launch-image placeholder"></div>'
+                        }
+                    </div>
+                    <div class="launch-content">
+                        <span class="launch-status ${status.class}">${status.label}</span>
+                        <h3 class="launch-name">${launch.name}</h3>
+                        <p class="launch-provider">${launch.launch_service_provider?.name || 'Unknown Provider'}</p>
+                        
+                        <div class="countdown" data-launch-time="${launch.net}" id="countdown-featured">
+                            ${getCountdown(launch.net)}
+                        </div>
+
+                        <div class="rocket-info">
+                            <div class="rocket-name">${launch.rocket?.configuration?.full_name || launch.rocket?.configuration?.name || 'Rocket TBD'}</div>
+                            <div class="rocket-details">
+                                ${launch.rocket?.configuration?.family ? `Family: ${launch.rocket.configuration.family}` : ''}
+                                ${launch.rocket?.configuration?.variant ? ` | Variant: ${launch.rocket.configuration.variant}` : ''}
+                            </div>
+                        </div>
+
+                        <div class="launch-meta">
+                            <div class="meta-item">
+                                <span class="meta-icon"></span>
+                                <span class="meta-label">Date:</span>
+                                <span class="meta-value">${launchDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-icon"></span>
+                                <span class="meta-label">Time:</span>
+                                <span class="meta-value">${launchDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-icon"></span>
+                                <span class="meta-label">Location:</span>
+                                <span class="meta-value">${launch.pad?.location?.name || 'TBD'}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-icon"></span>
+                                <span class="meta-label">Mission:</span>
+                                <span class="meta-value">${launch.mission?.name || 'Mission details TBD'}
+                                    ${launch.mission?.type ? `<span class="mission-type">${launch.mission.type}</span>` : ''}
+                                </span>
+                            </div>
+                        </div>
+
+                        <p class="launch-description">${launch.mission?.description || getMissionDescription(launch)}</p>
+
+                        <div class="launch-actions">
+                            ${getStreamLink(launch, false)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderLaunchCard(launch, index) {
+            const status = statusMap[launch.status?.id] || { class: 'status-tbd', label: 'TBD' };
+            const launchDate = new Date(launch.net);
+            const isPast = launchDate < new Date();
+            const imageUrl = launch.image || launch.rocket?.configuration?.image_url;
+            const delay = Math.min(index * 0.1, 1);
+
+            return `
+                <div class="launch-card" style="animation-delay: ${delay}s;">
+                    ${imageUrl 
+                        ? `<img class="launch-image" src="${imageUrl}" alt="${launch.name}" onerror="this.outerHTML='<div class=\\'launch-image placeholder\\'></div>'">`
+                        : '<div class="launch-image placeholder"></div>'
+                    }
+                    <div class="launch-content">
+                        <span class="launch-status ${status.class}">${status.label}</span>
+                        <h3 class="launch-name">${launch.name}</h3>
+                        <p class="launch-provider">${launch.launch_service_provider?.name || 'Unknown Provider'}</p>
+                        
+                        ${!isPast ? `
+                            <div class="countdown" data-launch-time="${launch.net}">
+                                ${getCountdown(launch.net)}
+                            </div>
+                        ` : `
+                            <div class="countdown past">
+                                ${launchDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </div>
+                        `}
+
+                        <div class="rocket-info">
+                            <div class="rocket-name">${launch.rocket?.configuration?.name || 'Rocket TBD'}</div>
+                        </div>
+
+                        <div class="launch-meta">
+                            <div class="meta-item">
+                                <span class="meta-icon"></span>
+                                <span class="meta-value">${launch.pad?.name || launch.pad?.location?.name || 'Location TBD'}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-icon"></span>
+                                <span class="meta-value">${launch.mission?.name || 'Mission TBD'}
+                                    ${launch.mission?.type ? `<span class="mission-type">${launch.mission.type}</span>` : ''}
+                                </span>
+                            </div>
+                        </div>
+
+                        <p class="launch-description">${launch.mission?.description || getMissionDescription(launch)}</p>
+
+                        <div class="launch-actions">
+                            ${getStreamLink(launch, isPast)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getStreamLink(launch, isPast) {
+            const providerName = launch.launch_service_provider?.name || '';
+            const isSpaceX = providerName.toLowerCase().includes('spacex');
+            
+            // If there's a video URL, use it
+            if (launch.vidURLs && launch.vidURLs.length > 0) {
+                return `<a href="${launch.vidURLs[0].url}" target="_blank" class="btn btn-primary">${isPast ? 'Replay' : 'Watch'}</a>`;
+            }
+            
+            // If there's a webcast URL, use it
+            if (launch.webcast_live) {
+                return `<a href="${launch.webcast_live}" target="_blank" class="btn btn-primary">${isPast ? 'Replay' : 'Watch'}</a>`;
+            }
+            
+            // For SpaceX launches without a stream URL, link to X.com
+            if (isSpaceX) {
+                if (isPast) {
+                    const searchQuery = encodeURIComponent(launch.name);
+                    return `<a href="https://x.com/search?q=${searchQuery}" target="_blank" class="btn btn-primary">Watch Stream</a>`;
+                } else {
+                    return `<a href="https://x.com/SpaceX" target="_blank" class="btn btn-primary">Watch Stream</a>`;
+                }
+            }
+            
+            // For past launches, search YouTube
+            if (isPast) {
+                const searchQuery = encodeURIComponent(launch.name + ' launch');
+                return `<a href="https://www.youtube.com/results?search_query=${searchQuery}" target="_blank" class="btn btn-primary">Find Video</a>`;
+            }
+            
+            // Default for upcoming launches: link to YouTube search
+            const searchQuery = encodeURIComponent(launch.name + ' launch stream');
+            return `<a href="https://www.youtube.com/results?search_query=${searchQuery}" target="_blank" class="btn btn-primary">Watch Stream</a>`;
+        }
+
+        function getMissionDescription(launch) {
+            const parts = [];
+            if (launch.launch_service_provider?.name) {
+                parts.push(`Launch by ${launch.launch_service_provider.name}`);
+            }
+            if (launch.rocket?.configuration?.name) {
+                parts.push(`using a ${launch.rocket.configuration.name} rocket`);
+            }
+            if (launch.pad?.location?.name) {
+                parts.push(`from ${launch.pad.location.name}`);
+            }
+            if (launch.mission?.orbit?.name) {
+                parts.push(`to ${launch.mission.orbit.name}`);
+            }
+            return parts.join(' ') + '.' || 'Mission details will be available closer to launch date.';
+        }
+
+        function getCountdown(launchTime) {
+            const now = new Date();
+            const launch = new Date(launchTime);
+            const diff = launch - now;
+
+            if (diff < 0) {
+                return 'LAUNCHED';
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            if (days > 0) {
+                return `T-${days}D ${hours}H ${minutes}M`;
+            } else if (hours > 0) {
+                return `T-${hours}H ${minutes}M ${seconds}S`;
+            } else {
+                return `T-${minutes}M ${seconds}S`;
+            }
+        }
+
+        function startCountdowns() {
+            setInterval(() => {
+                document.querySelectorAll('.countdown[data-launch-time]').forEach(el => {
+                    const launchTime = el.dataset.launchTime;
+                    if (launchTime) {
+                        el.textContent = getCountdown(launchTime);
+                    }
+                });
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
+
