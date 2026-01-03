@@ -579,8 +579,8 @@
     </div>
 
     <script>
-        // APIs - using SpaceX API as primary (more reliable, no rate limits)
-        const SPACEX_API = 'https://api.spacexdata.com/v5/launches/query';
+        // APIs - using SpaceX API v4 as primary (more reliable, no rate limits, simpler endpoints)
+        const SPACEX_API = 'https://api.spacexdata.com/v4';
         const SPACE_DEVS_API = 'https://ll.thespacedevs.com/2.2.0';
         
         // US Launch locations (approximate IDs and search terms)
@@ -655,31 +655,20 @@
                 let useSpaceX = true;
                 
                 try {
-                    // SpaceX API v5 uses POST with query body
-                    const queryBody = {
-                        query: {},
-                        options: {
-                            limit: 20,
-                            sort: type === 'upcoming' ? { date_utc: 'asc' } : { date_utc: 'desc' },
-                            populate: ['rocket', 'launchpad']
-                        }
-                    };
-                    
+                    // SpaceX API v4 has simple GET endpoints
                     if (type === 'upcoming') {
-                        queryBody.query.upcoming = true;
+                        response = await fetch(`${SPACEX_API}/launches/upcoming?limit=20`, {
+                            method: 'GET',
+                            headers: { 'Accept': 'application/json' },
+                            mode: 'cors'
+                        });
                     } else {
-                        queryBody.query.upcoming = false;
+                        response = await fetch(`${SPACEX_API}/launches/past?limit=20&order=desc`, {
+                            method: 'GET',
+                            headers: { 'Accept': 'application/json' },
+                            mode: 'cors'
+                        });
                     }
-                    
-                    response = await fetch(SPACEX_API, {
-                        method: 'POST',
-                        headers: { 
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(queryBody),
-                        mode: 'cors'
-                    });
                     
                     if (!response.ok) throw new Error('SpaceX API failed');
                 } catch (spacexError) {
@@ -762,8 +751,7 @@
                 // Convert SpaceX API format to our format
                 let launches = [];
                 if (useSpaceX) {
-                    const docs = data.docs || data;
-                    launches = (Array.isArray(docs) ? docs : []).map(launch => ({
+                    launches = (Array.isArray(data) ? data : []).map(launch => ({
                         id: launch.id,
                         name: launch.name,
                         net: launch.date_utc,
@@ -771,23 +759,23 @@
                         launch_service_provider: { name: 'SpaceX' },
                         rocket: {
                             configuration: {
-                                name: launch.rocket?.name || 'Falcon 9',
-                                full_name: launch.rocket?.name || 'Falcon 9',
+                                name: 'Falcon 9',
+                                full_name: 'Falcon 9',
                                 image_url: launch.links?.patch?.large || null
                             }
                         },
                         pad: {
-                            name: launch.launchpad?.name || 'Launch Site',
+                            name: 'Launch Site',
                             location: { 
-                                name: launch.launchpad?.full_name || launch.launchpad?.name || 'Cape Canaveral',
-                                latitude: launch.launchpad?.latitude || null,
-                                longitude: launch.launchpad?.longitude || null
+                                name: 'Cape Canaveral, FL',
+                                latitude: null,
+                                longitude: null
                             }
                         },
                         mission: {
                             name: launch.name,
                             description: launch.details || '',
-                            type: launch.payloads?.[0]?.type || 'Satellite'
+                            type: 'Satellite'
                         },
                         image: launch.links?.patch?.large || null,
                         vidURLs: launch.links?.webcast ? [{ url: launch.links.webcast }] : [],
