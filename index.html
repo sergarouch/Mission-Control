@@ -601,34 +601,6 @@
         let launchCache = {};
         let cacheTimestamp = {};
         const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-        
-        // Load cache from localStorage on page load
-        function loadCacheFromStorage() {
-            try {
-                const cached = localStorage.getItem('rocketLaunchesCache');
-                const cachedTime = localStorage.getItem('rocketLaunchesCacheTime');
-                if (cached && cachedTime) {
-                    const cacheAge = Date.now() - parseInt(cachedTime);
-                    if (cacheAge < CACHE_DURATION * 2) { // Use localStorage cache for up to 10 minutes
-                        launchCache = JSON.parse(cached);
-                        cacheTimestamp = JSON.parse(localStorage.getItem('rocketLaunchesCacheTimestamp') || '{}');
-                    }
-                }
-            } catch (e) {
-                console.error('Error loading cache from storage:', e);
-            }
-        }
-        
-        // Save cache to localStorage
-        function saveCacheToStorage() {
-            try {
-                localStorage.setItem('rocketLaunchesCache', JSON.stringify(launchCache));
-                localStorage.setItem('rocketLaunchesCacheTimestamp', JSON.stringify(cacheTimestamp));
-                localStorage.setItem('rocketLaunchesCacheTime', Date.now().toString());
-            } catch (e) {
-                console.error('Error saving cache to storage:', e);
-            }
-        }
 
         // Status mapping
         const statusMap = {
@@ -644,7 +616,6 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            loadCacheFromStorage();
             setupTabs();
             fetchLaunches('upcoming');
         });
@@ -663,9 +634,9 @@
         async function fetchLaunches(type) {
             const container = document.getElementById('launches-container');
             
-            // Check cache first - use cache if available and less than cache duration
+            // Check cache first
             const now = Date.now();
-            if (launchCache[type] && launchCache[type].length > 0 && cacheTimestamp[type] && (now - cacheTimestamp[type]) < CACHE_DURATION) {
+            if (launchCache[type] && cacheTimestamp[type] && (now - cacheTimestamp[type]) < CACHE_DURATION) {
                 renderLaunches(launchCache[type], type);
                 return;
             }
@@ -703,10 +674,14 @@
                 
                 if (response.status === 429) {
                     // Rate limited - use cache if available
-                    if (launchCache[type] && launchCache[type].length > 0) {
+                    if (launchCache[type]) {
                         container.innerHTML = `
-                            <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid var(--warning); padding: 0.8rem; margin-bottom: 1rem; border-radius: 4px; text-align: center; color: var(--warning); font-size: 0.85rem;">
-                                Rate limit reached. Showing cached data. Please try again in a few minutes.
+                            <div class="empty-state" style="padding: 2rem;">
+                                <h3 style="color: var(--warning); margin-bottom: 1rem;">Rate Limit Reached</h3>
+                                <p>Showing cached data. Please refresh in a few minutes.</p>
+                                <button class="btn btn-primary" onclick="fetchLaunches('${type}')" style="margin-top: 1rem; width: auto;">
+                                    Try Again
+                                </button>
                             </div>
                         `;
                         renderLaunches(launchCache[type], type);
@@ -739,7 +714,6 @@
                 
                 launchCache[type] = launches;
                 cacheTimestamp[type] = Date.now();
-                saveCacheToStorage();
                 
                 renderLaunches(launches, type);
                 document.getElementById('last-updated').textContent = new Date().toLocaleString();
@@ -747,26 +721,11 @@
                 console.error('Fetch error:', error);
                 console.error('Error details:', error.message);
                 
-                // Try to show cached data if available (check both memory and localStorage)
-                if (launchCache[type] && launchCache[type].length > 0) {
-                    const warningMsg = error.message.includes('Rate limit') || error.message.includes('429') 
-                        ? 'Rate limit reached. Showing cached data. Please try again in a few minutes.'
-                        : `API temporarily unavailable. Showing cached data.`;
+                // Try to show cached data if available
+                if (launchCache[type]) {
                     container.innerHTML = `
-                        <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid var(--warning); padding: 0.8rem; margin-bottom: 1rem; border-radius: 4px; text-align: center; color: var(--warning); font-size: 0.85rem;">
-                            ${warningMsg}
-                        </div>
-                    `;
-                    renderLaunches(launchCache[type], type);
-                    return;
-                }
-                
-                // Last resort: try to load from localStorage even if memory cache is empty
-                loadCacheFromStorage();
-                if (launchCache[type] && launchCache[type].length > 0) {
-                    container.innerHTML = `
-                        <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid var(--warning); padding: 0.8rem; margin-bottom: 1rem; border-radius: 4px; text-align: center; color: var(--warning); font-size: 0.85rem;">
-                            API unavailable. Showing previously cached data.
+                        <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid var(--warning); padding: 0.5rem; margin-bottom: 1rem; border-radius: 4px; text-align: center; color: var(--warning); font-size: 0.85rem;">
+                            API Error: ${error.message || 'Network error'}. Showing cached data.
                         </div>
                     `;
                     renderLaunches(launchCache[type], type);
@@ -780,10 +739,8 @@
                             <path d="M12 8v4M12 16h.01"/>
                         </svg>
                         <h3>Connection Lost</h3>
-                        <p>Unable to reach mission control. The API may be temporarily unavailable or rate limited.</p>
-                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">${error.message.includes('Rate limit') || error.message.includes('429') 
-                            ? 'Rate limit exceeded. Please try again in a few minutes.'
-                            : `Error: ${error.message || 'Network error'}`}</p>
+                        <p>Unable to reach mission control. The API may be temporarily unavailable.</p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Error: ${error.message || 'Network error'}</p>
                         <button class="btn btn-primary" onclick="fetchLaunches('${type}')" style="margin-top: 1rem; width: auto;">
                             Retry Connection
                         </button>
@@ -1023,6 +980,9 @@
             
             // Build description
             let description = failReason || 'This launch encountered a failure.';
+            if (description.length > 200) {
+                description = description.substring(0, 200) + '...';
+            }
             
             // Build link - prefer Wikipedia, then news URL, then SpaceLaunchNow link
             let moreInfoLink = '';
