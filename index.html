@@ -980,9 +980,6 @@
             
             // Build description
             let description = failReason || 'This launch encountered a failure.';
-            if (description.length > 200) {
-                description = description.substring(0, 200) + '...';
-            }
             
             // Build link - prefer Wikipedia, then news URL, then SpaceLaunchNow link
             let moreInfoLink = '';
