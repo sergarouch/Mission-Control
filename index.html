@@ -551,6 +551,8 @@
 
         let currentTab = 'upcoming';
         let launchCache = {};
+        let cacheTimestamp = {};
+        const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
         // Status mapping
         const statusMap = {
@@ -583,6 +585,14 @@
 
         async function fetchLaunches(type) {
             const container = document.getElementById('launches-container');
+            
+            // Check cache first
+            const now = Date.now();
+            if (launchCache[type] && cacheTimestamp[type] && (now - cacheTimestamp[type]) < CACHE_DURATION) {
+                renderLaunches(launchCache[type], type);
+                return;
+            }
+            
             container.innerHTML = `
                 <div class="loading">
                     <div class="loading-spinner"></div>
@@ -613,7 +623,31 @@
                     mode: 'cors'
                 });
                 
+                if (response.status === 429) {
+                    // Rate limited - use cache if available
+                    if (launchCache[type]) {
+                        container.innerHTML = `
+                            <div class="empty-state" style="padding: 2rem;">
+                                <h3 style="color: var(--warning); margin-bottom: 1rem;">Rate Limit Reached</h3>
+                                <p>Showing cached data. Please refresh in a few minutes.</p>
+                                <button class="btn btn-primary" onclick="fetchLaunches('${type}')" style="margin-top: 1rem; width: auto;">
+                                    Try Again
+                                </button>
+                            </div>
+                        `;
+                        renderLaunches(launchCache[type], type);
+                        return;
+                    }
+                    throw new Error('Rate limit exceeded. Please try again in a few minutes.');
+                }
+                
                 if (!response.ok) {
+                    // Try to use cache if available
+                    if (launchCache[type] && response.status !== 404) {
+                        renderLaunches(launchCache[type], type);
+                        container.insertAdjacentHTML('afterbegin', '<div style="background: rgba(234, 179, 8, 0.1); border: 1px solid var(--warning); padding: 0.5rem; margin-bottom: 1rem; border-radius: 4px; text-align: center; color: var(--warning); font-size: 0.85rem;">Showing cached data due to API error</div>');
+                        return;
+                    }
                     throw new Error(`API request failed with status ${response.status}`);
                 }
                 
@@ -630,12 +664,25 @@
                 }
                 
                 launchCache[type] = launches;
+                cacheTimestamp[type] = Date.now();
                 
                 renderLaunches(launches, type);
                 document.getElementById('last-updated').textContent = new Date().toLocaleString();
             } catch (error) {
                 console.error('Fetch error:', error);
                 console.error('Error details:', error.message);
+                
+                // Try to show cached data if available
+                if (launchCache[type]) {
+                    container.innerHTML = `
+                        <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid var(--warning); padding: 0.5rem; margin-bottom: 1rem; border-radius: 4px; text-align: center; color: var(--warning); font-size: 0.85rem;">
+                            API Error: ${error.message || 'Network error'}. Showing cached data.
+                        </div>
+                    `;
+                    renderLaunches(launchCache[type], type);
+                    return;
+                }
+                
                 container.innerHTML = `
                     <div class="empty-state">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
