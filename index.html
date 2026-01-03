@@ -600,7 +600,7 @@
         let currentTab = 'upcoming';
         let launchCache = {};
         let cacheTimestamp = {};
-        const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+        const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes to reduce API calls
 
         // Status mapping
         const statusMap = {
@@ -672,21 +672,44 @@
                 });
                 
                 if (response.status === 429) {
-                    // Rate limited - use cache if available
-                    if (launchCache[type]) {
+                    // Rate limited - parse Retry-After header
+                    const retryAfter = response.headers.get('Retry-After');
+                    let retryMessage = 'Please try again in a few minutes.';
+                    if (retryAfter) {
+                        const seconds = parseInt(retryAfter);
+                        const minutes = Math.ceil(seconds / 60);
+                        retryMessage = `Rate limit reached. Please try again in approximately ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
+                    }
+                    
+                    // Use cache if available
+                    if (launchCache[type] && launchCache[type].length > 0) {
                         container.innerHTML = `
-                            <div class="empty-state" style="padding: 2rem;">
-                                <h3 style="color: var(--warning); margin-bottom: 1rem;">Rate Limit Reached</h3>
-                                <p>Showing cached data. Please refresh in a few minutes.</p>
-                                <button class="btn btn-primary" onclick="fetchLaunches('${type}')" style="margin-top: 1rem; width: auto;">
-                                    Try Again
-                                </button>
+                            <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid var(--warning); padding: 0.8rem; margin-bottom: 1rem; border-radius: 4px; text-align: center; color: var(--warning); font-size: 0.85rem;">
+                                ${retryMessage} Showing cached data below.
                             </div>
                         `;
                         renderLaunches(launchCache[type], type);
                         return;
                     }
-                    throw new Error('Rate limit exceeded. Please try again in a few minutes.');
+                    
+                    // No cache available - show error
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M12 8v4M12 16h.01"/>
+                            </svg>
+                            <h3 style="color: var(--warning);">Rate Limit Reached</h3>
+                            <p>${retryMessage}</p>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 1rem;">
+                                The API has rate limits to ensure fair usage. Please wait before trying again.
+                            </p>
+                            <button class="btn btn-primary" onclick="fetchLaunches('${type}')" style="margin-top: 1rem; width: auto;">
+                                Retry Later
+                            </button>
+                        </div>
+                    `;
+                    return;
                 }
                 
                 if (!response.ok) {
