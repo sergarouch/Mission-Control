@@ -579,8 +579,9 @@
     </div>
 
     <script>
-        // Launch Library 2 API
-        const API_BASE = 'https://ll.thespacedevs.com/2.2.0';
+        // APIs - using SpaceX API as primary (more reliable, no rate limits)
+        const SPACEX_API = 'https://api.spacexdata.com/v5/launches';
+        const SPACE_DEVS_API = 'https://ll.thespacedevs.com/2.2.0';
         
         // US Launch locations (approximate IDs and search terms)
         const US_LOCATIONS = [
@@ -649,27 +650,49 @@
             `;
 
             try {
-                let url;
-                let params = new URLSearchParams({
-                    limit: 20,
-                    location__country_code: 'USA'
-                });
+                // Try SpaceX API first (more reliable, no rate limits for public use)
+                let response;
+                let useSpaceX = true;
+                
+                try {
+                    if (type === 'upcoming') {
+                        response = await fetch(`${SPACEX_API}/upcoming?limit=20`, {
+                            method: 'GET',
+                            headers: { 'Accept': 'application/json' },
+                            mode: 'cors'
+                        });
+                    } else {
+                        response = await fetch(`${SPACEX_API}/past?limit=20&order=desc`, {
+                            method: 'GET',
+                            headers: { 'Accept': 'application/json' },
+                            mode: 'cors'
+                        });
+                    }
+                    
+                    if (!response.ok) throw new Error('SpaceX API failed');
+                } catch (spacexError) {
+                    // Fallback to Space Devs API
+                    useSpaceX = false;
+                    let url;
+                    let params = new URLSearchParams({
+                        limit: 20,
+                        location__country_code: 'USA'
+                    });
 
-                if (type === 'upcoming') {
-                    url = `${API_BASE}/launch/upcoming/?${params}`;
-                } else {
-                    params.set('limit', 20);
-                    params.set('ordering', '-net');
-                    url = `${API_BASE}/launch/previous/?${params}`;
+                    if (type === 'upcoming') {
+                        url = `${SPACE_DEVS_API}/launch/upcoming/?${params}`;
+                    } else {
+                        params.set('limit', 20);
+                        params.set('ordering', '-net');
+                        url = `${SPACE_DEVS_API}/launch/previous/?${params}`;
+                    }
+
+                    response = await fetch(url, {
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json' },
+                        mode: 'cors'
+                    });
                 }
-
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                    mode: 'cors'
-                });
                 
                 if (response.status === 429) {
                     // Rate limited - parse Retry-After header
@@ -723,7 +746,48 @@
                 }
                 
                 const data = await response.json();
-                let launches = data.results || [];
+                
+                // Convert SpaceX API format to our format
+                let launches = [];
+                if (useSpaceX) {
+                    launches = data.map(launch => ({
+                        id: launch.id,
+                        name: launch.name,
+                        net: launch.date_utc,
+                        status: { id: launch.success === false ? 4 : (launch.upcoming ? 2 : 3) },
+                        launch_service_provider: { name: 'SpaceX' },
+                        rocket: {
+                            configuration: {
+                                name: launch.rocket || 'Falcon 9',
+                                full_name: launch.rocket || 'Falcon 9',
+                                image_url: launch.links?.patch?.large || null
+                            }
+                        },
+                        pad: {
+                            name: launch.launchpad || 'Launch Site',
+                            location: { 
+                                name: launch.launchpad || 'Cape Canaveral',
+                                latitude: null,
+                                longitude: null
+                            }
+                        },
+                        mission: {
+                            name: launch.name,
+                            description: launch.details || '',
+                            type: launch.payloads?.[0]?.type || 'Satellite'
+                        },
+                        image: launch.links?.patch?.large || null,
+                        vidURLs: launch.links?.webcast ? [{ url: launch.links.webcast }] : [],
+                        slug: launch.id,
+                        webcast_live: launch.links?.webcast || null,
+                        infoURLs: [launch.links?.wikipedia, launch.links?.article].filter(Boolean)
+                    })).filter(launch => {
+                        // Filter for US launches only (SpaceX launches are primarily from US)
+                        return true;
+                    });
+                } else {
+                    launches = data.results || [];
+                }
                 
                 // Filter out past launches for upcoming tab
                 if (type === 'upcoming') {
